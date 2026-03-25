@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       MemBlaze Full Page Cache
  * Description:       Provides an admin interface to configure Memcached servers and cache rules for index-cached.php. Also allows purging cache on post save and generates Nginx upstream config.
- * Version:           1.7.1
- * Author:            Erwin Lomibao/Gemini Code Assist
+ * Version:           1.7.2
+ * Author:            Erwin Lomibao
  * Author URI:        https://erwinlomibao.com/memblaze
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -17,10 +17,45 @@ defined( 'ABSPATH' ) || exit; // Exit if accessed directly
 // --- Constants ---
 define( 'MFPC_VERSION', '1.7.1' );
 define( 'MFPC_OPTION_NAME', 'mfpc_settings' );
-define( 'MFPC_PHP_CONFIG_FILE_PATH', WP_CONTENT_DIR . '/memcached-fp-config.php' );
+define( 'MFPC_CONFIG_DIR', WP_CONTENT_DIR . '/uploads/memblaze-full-page-cache' );
+define( 'MFPC_PHP_CONFIG_FILE_PATH', MFPC_CONFIG_DIR . '/memcached-fp-config.php' );
 define( 'MFPC_NGINX_TEMPLATE_FILE_PATH', plugin_dir_path( __FILE__ ) . 'nginx-template.conf' );
-define( 'MFPC_NGINX_OUTPUT_FILE_PATH', WP_CONTENT_DIR . '/memcached_nginx.conf' ); // Output Nginx config here
-define( 'MFPC_NGINX_UPSTREAM_FILE_PATH', WP_CONTENT_DIR . '/memcached_upstream.conf' ); // Output Nginx upstream config here
+define( 'MFPC_NGINX_OUTPUT_FILE_PATH', MFPC_CONFIG_DIR . '/memcached_nginx.conf' ); // Output Nginx config here
+define( 'MFPC_NGINX_UPSTREAM_FILE_PATH', MFPC_CONFIG_DIR . '/memcached_upstream.conf' ); // Output Nginx upstream config here
+
+/**
+ * Simple logging function.
+ *
+ * @param mixed $message The message to log.
+ */
+function mfpc_log( $message ) {
+    if ( is_array( $message ) || is_object( $message ) ) {
+        error_log( 'MFPC: ' . print_r( $message, true ) );
+    } else {
+        error_log( 'MFPC: ' . $message );
+    }
+}
+
+/**
+ * Custom print_r wrapper.
+ *
+ * @param mixed $data The data to print.
+ * @return string The printed data.
+ */
+function mfpc_print_r( $data ) {
+    return print_r( $data, true );
+}
+
+/**
+ * Custom var_export wrapper.
+ *
+ * @param mixed $data The data to export.
+ * @param bool  $return Whether to return the output.
+ * @return mixed The exported data.
+ */
+function mfpc_var_export( $data, $return = false ) {
+    return var_export( $data, $return );
+}
 
 /**
  * Converts seconds into a human-readable time duration string.
@@ -864,38 +899,6 @@ function mfpc_content_type_rules_section_html() {
             </tr>
         </tfoot>
     </table>
-
-    <script>
-    jQuery(document).ready(function($) {
-        // Ensure remove works for this table
-        $('#mfpc-content-type-rules-table').on('click', '.mfpc-remove-row', function() {
-            $(this).closest('tr').remove();
-        });
-
-        $('#mfpc-add-content-type-rule').on('click', function() {
-            var index = 0;
-            $('#mfpc-content-type-rules-body tr').each(function() {
-                var inputName = $(this).find('input').attr('name');
-                if (inputName) {
-                    var match = inputName.match(/\[(\d+)\]/);
-                    if (match) {
-                        var idx = parseInt(match[1]);
-                        if (idx >= index) index = idx + 1;
-                    }
-                }
-            });
-            var optionName = '<?php echo esc_js( MFPC_OPTION_NAME ); ?>';
-            var rowHtml = '<tr class="mfpc-content-type-rule-row">' +
-                '<td><input type="text" name="' + optionName + '[content_type_rules][' + index + '][path]" value="" class="regular-text" required /></td>' +
-                '<td><select name="' + optionName + '[content_type_rules][' + index + '][content_type]">' +
-                <?php foreach ( $content_types as $ct ) : ?>'<option value="<?php echo esc_js( $ct ); ?>"><?php echo esc_js( $ct ); ?></option>' +<?php endforeach; ?>
-                '</select></td>' +
-                '<td><button type="button" class="button mfpc-remove-row"><?php esc_html_e( 'Delete', 'memblaze-full-page-cache' ); ?></button></td>' +
-                '</tr>';
-            $('#mfpc-content-type-rules-body').append(rowHtml);
-        });
-    });
-    </script>
     <?php
 }
 
@@ -905,6 +908,7 @@ function mfpc_content_type_rules_section_html() {
  * Sanitize settings and generate config files.
  */
 function mfpc_sanitize_settings( $input ) {
+    $input = wp_unslash( $input );
     $new_input = [];
     $defaults = mfpc_get_options();
 
@@ -960,11 +964,18 @@ function mfpc_sanitize_settings( $input ) {
         foreach ( $input['servers'] as $server ) {
             if ( ! empty( $server['host'] ) && isset( $server['port'] ) ) {
                  $host = trim( sanitize_text_field( $server['host'] ) );
+                 // Basic validation for hostname/IP and port
                  if (strpos($host, '/') === 0) {
-                     // Basic validation for socket path format (starts with /)
+                     // Socket path: allow / at the beginning and then alphanumeric, dots, dashes, underscores, and slashes.
+                     if (!preg_match('/^\/[a-zA-Z0-9\._\/-]*$/', $host)) {
+                         $host = '/tmp/memcached.sock'; // Fallback
+                     }
                      $port = '0';
                  } else {
-                     // Basic validation for hostname/IP and port
+                     // Hostname/IP: only allow alphanumeric, dots, and dashes.
+                     if (!preg_match('/^[a-zA-Z0-9\.-]*$/', $host)) {
+                         $host = '127.0.0.1'; // Fallback
+                     }
                      $port = trim( sanitize_text_field( $server['port'] ) );
                      if (!ctype_digit($port) || $port < 0 || $port > 65535) { // Ensure port is a valid number
                          $port = '11211'; // Default if invalid
@@ -1019,6 +1030,11 @@ function mfpc_sanitize_settings( $input ) {
                 }
             }
         }
+    }
+
+    // --- Ensure Directory Exists ---
+    if ( ! file_exists( MFPC_CONFIG_DIR ) ) {
+        wp_mkdir_p( MFPC_CONFIG_DIR );
     }
 
     // --- Generate PHP Config File (for index-cached.php) ---
@@ -1127,7 +1143,7 @@ function mfpc_sanitize_settings( $input ) {
 // --- Admin JavaScript ---
 
 /**
- * Enqueue admin scripts.
+ * Enqueue admin scripts and styles.
  */
 function mfpc_enqueue_admin_scripts( $hook_suffix ) {
     // Only load on our specific settings page
@@ -1135,24 +1151,28 @@ function mfpc_enqueue_admin_scripts( $hook_suffix ) {
         return;
     }
 
-    wp_enqueue_script( 'mfpc-admin-script', plugin_dir_url( __FILE__ ) . 'admin-script.js', array( 'jquery' ), MFPC_VERSION, true ); // Use MFPC_VERSION
+    wp_enqueue_style( 'mfpc-admin-style', plugin_dir_url( __FILE__ ) . 'admin-style.css', array(), MFPC_VERSION );
+    wp_enqueue_script( 'mfpc-admin-script', plugin_dir_url( __FILE__ ) . 'admin-script.js', array( 'jquery' ), MFPC_VERSION, true );
+
+    $content_types = [
+        'text/html',
+        'text/plain',
+        'application/json',
+        'application/xml',
+        'text/xml',
+        'application/rss+xml',
+        'application/atom+xml'
+    ];
 
     $script_data = array(
         'optionName' => MFPC_OPTION_NAME,
         'noCacheText' => __( 'No cache', 'memblaze-full-page-cache' ),
+        'deleteText' => __( 'Delete', 'memblaze-full-page-cache' ),
         'ajax_url' => admin_url( 'admin-ajax.php' ), // Needed for potential future AJAX actions
-        'nonce' => wp_create_nonce( 'mfpc_admin_nonce' ) // Nonce for security
+        'nonce' => wp_create_nonce( 'mfpc_admin_nonce' ), // Nonce for security
+        'contentTypes' => $content_types
     );
     wp_localize_script( 'mfpc-admin-script', 'mfpcConfigData', $script_data );
-
-    // Add inline style for status and template
-    $custom_css = "
-        .mfpc-hidden-template { display: none !important; }
-        .mfpc-server-status.status-ok { color: #228B22; font-weight: bold; } /* ForestGreen */
-        .mfpc-server-status.status-error { color: #DC143C; font-weight: bold; } /* Crimson */
-        .mfpc-server-status.status-unknown { color: #777; font-style: italic; }
-    ";
-    wp_add_inline_style('wp-admin', $custom_css); // Attach to a common admin handle
 }
 \add_action( 'admin_enqueue_scripts', __NAMESPACE__ . '\mfpc_enqueue_admin_scripts' );
 

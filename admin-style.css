@@ -1,0 +1,18 @@
+.mfpc-hidden-template {
+    display: none !important;
+}
+
+.mfpc-server-status.status-ok {
+    color: #228B22;
+    font-weight: bold;
+} /* ForestGreen */
+
+.mfpc-server-status.status-error {
+    color: #DC143C;
+    font-weight: bold;
+} /* Crimson */
+
+.mfpc-server-status.status-unknown {
+    color: #777;
+    font-style: italic;
+}

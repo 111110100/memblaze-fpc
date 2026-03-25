@@ -62,6 +62,40 @@ jQuery(document).ready(function($) {
         $tbody.append(newRow);
     });
 
+    // --- Content Type Rule Management ---
+    $('#mfpc-content-type-rules-table').on('click', '.mfpc-remove-row', function() {
+        $(this).closest('tr').remove();
+    });
+
+    $('#mfpc-add-content-type-rule').on('click', function() {
+        var index = 0;
+        $('#mfpc-content-type-rules-body tr').each(function() {
+            var inputName = $(this).find('input').attr('name');
+            if (inputName) {
+                var match = inputName.match(/\[(\d+)\]/);
+                if (match) {
+                    var idx = parseInt(match[1]);
+                    if (idx >= index) index = idx + 1;
+                }
+            }
+        });
+
+        const contentTypes = mfpcConfigData.contentTypes;
+        let optionsHtml = '';
+        contentTypes.forEach(function(ct) {
+            optionsHtml += `<option value="${ct}">${ct}</option>`;
+        });
+
+        var rowHtml = '<tr class="mfpc-content-type-rule-row">' +
+            '<td><input type="text" name="' + optionName + '[content_type_rules][' + index + '][path]" value="" class="regular-text" required /></td>' +
+            '<td><select name="' + optionName + '[content_type_rules][' + index + '][content_type]">' +
+            optionsHtml +
+            '</select></td>' +
+            '<td><button type="button" class="button mfpc-remove-row">' + (typeof mfpcConfigData.deleteText !== 'undefined' ? mfpcConfigData.deleteText : 'Delete') + '</button></td>' +
+            '</tr>';
+        $('#mfpc-content-type-rules-body').append(rowHtml);
+    });
+
 
     // --- Generic Remove Row (No Re-indexing) ---
     $('body').on('click', '.mfpc-remove-row', function() {
