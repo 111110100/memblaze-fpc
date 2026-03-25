@@ -3,7 +3,7 @@ Contributors: erwinlomibao
 Tags: cache, memcached, performance, full page cache, optimization
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 1.7.1
+Stable tag: 1.7.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -50,6 +50,13 @@ Yes, this plugin requires the `memcached` extension to be installed on your serv
 1. Main configuration dashboard showing settings and stats.
 
 == Changelog ==
+
+= 1.7.2 =
+* Refactored admin styles and scripts to use enqueued files (admin-style.css and admin-script.js).
+* Relocated generated configuration files to wp-content/uploads/memblaze-full-page-cache/ for better standards compliance.
+* Improved security with wp_unslash() and strict regex validation for Memcached hostnames.
+* Added missing helper functions (mfpc_log, etc.) and automated directory creation.
+* Corrected directory naming consistency throughout the project.
 
 = 1.7.1 =
 * Renamed main plugin file to memblaze-full-page-cache.php.
