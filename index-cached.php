@@ -1,8 +1,8 @@
 <?php
 /**
  * @package index-cached.php
- * @author erwin lomibao/Gemini Code Assist
- * @version 1.7.1
+ * @author erwin lomibao
+ * @version 1.7.2
  * @license GPLv2
  * @website https://github.com/111110100/memblaze-full-page-cache
  */
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $mfpc_start = microtime(true);
 
 // --- Configuration Loading ---
-$mfpc_config_file = __DIR__ . '/wp-content/memcached-fp-config.php'; // Adjust path if needed
+$mfpc_config_file = __DIR__ . '/wp-content/uploads/memblaze-full-page-cache/memcached-fp-config.php'; // Adjust path if needed
 
 $mfpc_config = [];
 if ( file_exists( $mfpc_config_file ) ) {
@@ -59,6 +59,18 @@ $mfpc_probabilistic_beta = 10.0;
 
 // --- Bypass Cookie Configuration ---
 $mfpc_bypass_cookie_prefixes = isset( $mfpc_config['bypass_cookies'] ) && is_array( $mfpc_config['bypass_cookies'] ) ? $mfpc_config['bypass_cookies'] : [];
+
+/**
+ * Simple logging function.
+ */
+function mfpc_log( $message ) {
+    if ( is_array( $message ) || is_object( $message ) ) {
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_print_r
+        error_log( 'MFPC: ' . print_r( $message, true ) );
+    } else {
+        error_log( 'MFPC: ' . $message );
+    }
+}
 
 /**
  * Checks if any cookie in the current request starts with one of the defined prefixes.
