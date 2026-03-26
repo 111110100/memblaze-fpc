@@ -2,7 +2,7 @@
 /**
  * @package index-cached.php
  * @author erwin lomibao
- * @version 1.7.2
+ * @version 1.7.3
  * @license GPLv2
  * @website https://github.com/111110100/memblaze-full-page-cache
  */
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $mfpc_start = microtime(true);
 
 // --- Configuration Loading ---
-$mfpc_config_file = __DIR__ . '/wp-content/uploads/memblaze-full-page-cache/memcached-fp-config.php'; // Adjust path if needed
+$mfpc_config_file = __DIR__ . '/wp-content/memcached-fp-config.php'; // Adjust path if needed
 
 $mfpc_config = [];
 if ( file_exists( $mfpc_config_file ) ) {
@@ -64,11 +64,13 @@ $mfpc_bypass_cookie_prefixes = isset( $mfpc_config['bypass_cookies'] ) && is_arr
  * Simple logging function.
  */
 function mfpc_log( $message ) {
-    if ( is_array( $message ) || is_object( $message ) ) {
-        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_print_r
-        error_log( 'MFPC: ' . print_r( $message, true ) );
-    } else {
-        error_log( 'MFPC: ' . $message );
+    global $mfpc_debug;
+    if ( $mfpc_debug ) {
+        if ( is_array( $message ) || is_object( $message ) ) {
+            error_log( 'MFPC: ' . json_encode( $message ) );
+        } else {
+            error_log( 'MFPC: ' . $message );
+        }
     }
 }
 
