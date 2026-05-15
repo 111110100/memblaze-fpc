@@ -128,8 +128,8 @@ function mfpc_add_admin_menu_bar( $admin_bar ) {
         $options = mfpc_get_options();
         $memcached = mfpc_get_memcached_connection( $options['servers'] );
         if ( $memcached ) {
-            $host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( \wp_unslash( $_SERVER['HTTP_HOST'] ) ) : wp_parse_url( home_url(), PHP_URL_HOST );
-            $uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( \wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
+            $host = filter_input( INPUT_SERVER, 'HTTP_HOST', FILTER_SANITIZE_FULL_SPECIAL_CHARS ) ?: wp_parse_url( home_url(), PHP_URL_HOST );
+            $uri = filter_input( INPUT_SERVER, 'REQUEST_URI', FILTER_SANITIZE_URL ) ?: '/';
 
             // Check cache status
             $cacheKey = "fullpage:{$host}{$uri}";
@@ -435,7 +435,7 @@ function mfpc_options_page_html() {
     <div class="wrap">
         <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
         <?php
-        $server_software = isset($_SERVER['SERVER_SOFTWARE']) ? sanitize_text_field( \wp_unslash( $_SERVER['SERVER_SOFTWARE'] ) ) : '';
+        $server_software = filter_input( INPUT_SERVER, 'SERVER_SOFTWARE', FILTER_SANITIZE_FULL_SPECIAL_CHARS ) ?: '';
         $is_nginx = (stripos($server_software, 'nginx') !== false);
         $is_apache = (stripos($server_software, 'apache') !== false) || (stripos($server_software, 'litespeed') !== false);
 
@@ -604,8 +604,8 @@ function mfpc_reset_stats() {
     $memcached = mfpc_get_memcached_connection( $options['servers'] );
     if ( $memcached ) {
         // Use the same prefix logic as index-cached.php
-        // Note: index-cached.php uses $_SERVER['HTTP_HOST']. We assume admin is on same host.
-        $host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( \wp_unslash( $_SERVER['HTTP_HOST'] ) ) : wp_parse_url( home_url(), PHP_URL_HOST );
+        // Note: index-cached.php uses filter_input(INPUT_SERVER, 'HTTP_HOST', ...). We assume admin is on same host.
+        $host = filter_input( INPUT_SERVER, 'HTTP_HOST', FILTER_SANITIZE_FULL_SPECIAL_CHARS ) ?: wp_parse_url( home_url(), PHP_URL_HOST );
         $prefix = "mfpc:stats:{$host}:";
 
         $memcached->delete( $prefix . 'hits' );
@@ -1340,7 +1340,7 @@ function mfpc_get_site_stats() {
 
     if ( $memcached ) {
         // Use the same prefix logic as index-cached.php
-        $host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( \wp_unslash( $_SERVER['HTTP_HOST'] ) ) : wp_parse_url( home_url(), PHP_URL_HOST );
+        $host = filter_input( INPUT_SERVER, 'HTTP_HOST', FILTER_SANITIZE_FULL_SPECIAL_CHARS ) ?: wp_parse_url( home_url(), PHP_URL_HOST );
         $prefix = "mfpc:stats:{$host}:";
 
         $stats['hits'] = (int) $memcached->get( $prefix . 'hits' );
@@ -1506,8 +1506,9 @@ function mfpc_get_purge_keys_for_post( $post_id_or_object, $debug_mode = false )
     $site_parts = $get_url_parts( site_url() );
     if ( $site_parts ) $target_hosts[] = $site_parts['host'];
 
-    if ( isset( $_SERVER['HTTP_HOST'] ) ) {
-        $target_hosts[] = sanitize_text_field( \wp_unslash( $_SERVER['HTTP_HOST'] ) );
+$host_from_server = filter_input( INPUT_SERVER, 'HTTP_HOST', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
+    if ( $host_from_server ) {
+        $target_hosts[] = $host_from_server;
     }
 
     $target_hosts = array_unique( $target_hosts );
