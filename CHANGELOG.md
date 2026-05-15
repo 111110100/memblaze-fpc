@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.4] - 2026-03-27
+### Changed
+- **memblaze-full-page-cache.php**: Fix undefined wp_unslash error by using global namespace backslash
+- **index-cached.php**: Fix undefined and redeclaration errors for wp_unslash and stripslashes_deep by using mfpc_ prefixed fallbacks
+
 ## [1.7.3] - 2026-03-25
 ### Changed
 - **Logging Refinement**: Removed all instances of `print_r()` and replaced with `json_encode()` for safer production handling.
